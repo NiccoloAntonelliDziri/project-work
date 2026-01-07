@@ -1,0 +1,57 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+env/
+venv/
+.venv/
+.env
+
+# C extensions and compiled artifacts
+*.so
+*.so.*
+*.pyd
+*.o
+*.a
+*.obj
+
+# Cython generated sources
+src/cython/*.c
+src/cython/*.cpp
+
+# Build / distribution
+build/
+dist/
+pip-wheel-metadata/
+*.egg-info/
+*.egg
+
+# Test / coverage
+.pytest_cache/
+.coverage
+coverage.xml
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs and temp files
+*.log
+*.tmp
+tmp/
+*.bak
+
+# Jupyter
+.ipynb_checkpoints
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Misc
+.mypy_cache/
+.pyre/
