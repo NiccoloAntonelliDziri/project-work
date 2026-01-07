@@ -60,7 +60,7 @@ def solution(problem: Problem):
     return to_formatted_path(routes, problem)
 
 if __name__ == "__main__":
-    prob = Problem(num_cities=20, density=0.5, alpha=1.0, beta=2, seed=42)
+    prob = Problem(num_cities=100, density=np.sqrt(5)/np.pi, alpha=2*np.pi, beta=np.pi, seed=42)
     # prob.plot('test_graph.png')
     
     print("Running Genetic Algorithm Solution...")
@@ -75,3 +75,6 @@ if __name__ == "__main__":
 
     baseline_routes, baseline_cost = prob.baseline()
     print("Baseline cost:", baseline_cost)
+
+    improvement = (baseline_cost - cost) / baseline_cost * 100
+    print(f"Improvement over baseline: {improvement:.2f}%")
