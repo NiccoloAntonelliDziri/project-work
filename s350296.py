@@ -60,7 +60,7 @@ def solution(problem: Problem):
     return to_formatted_path(routes, problem)
 
 if __name__ == "__main__":
-    prob = Problem(num_cities=100, density=np.sqrt(5)/np.pi, alpha=2*np.pi, beta=np.pi, seed=42)
+    prob = Problem(num_cities=500, density=np.sqrt(5)/np.pi, alpha=2*np.pi, beta=np.pi, seed=42)
     # prob.plot('test_graph.png')
     
     print("Running Genetic Algorithm Solution...")
