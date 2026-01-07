@@ -8,13 +8,14 @@ class Problem:
     _graph: nx.Graph
     _alpha: float
     _beta: float
-    _scaling_factor: int
 
-    def __init__(self, num_cities, density=0.5, alpha=1.0, beta=1.0, scaling_factor=1_000, seed=42):
+    def __init__(self, num_cities, density=0.5, alpha=1.0, beta=1.0, seed=42):
+        assert density > 0 and density <= 1.0, "Density must be in (0, 1]"
+        assert num_cities >= 2, "There must be at least 2 cities (including depot)"
+
         rng = np.random.default_rng(seed)
         self._alpha = alpha
         self._beta = beta
-        self._scaling_factor = scaling_factor
         cities = rng.random(size=(num_cities, 2))
         cities[0, 0] = cities[0, 1] = 0.5
 
@@ -34,10 +35,6 @@ class Problem:
     @property
     def graph(self):
         return self._graph
-    
-    @property
-    def scaling_factor(self):
-        return self._scaling_factor
     
     @property
     def alpha(self):
