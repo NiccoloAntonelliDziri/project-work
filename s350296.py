@@ -2,6 +2,7 @@ from Problem import Problem, compute_total_cost, is_valid_solution
 from src.genetic_algorithm import GeneticAlgorithmSolver
 import numpy as np
 from icecream import ic
+from src.plot import plot_solution, plot_score_log
 
 def to_formatted_path(routes, problem):
     """
@@ -38,6 +39,7 @@ def to_routes(formatted_path):
 def solution(problem: Problem):
     n_nodes = problem.graph.number_of_nodes()
     
+    # Those are arbitrary settings that seem to work ? 
     pop_size = 50
     generations = 100
     if n_nodes > 50:
@@ -56,25 +58,35 @@ def solution(problem: Problem):
         tournament_size=5
     )
     
-    routes, cost = solver.run()
-    return to_formatted_path(routes, problem)
+    routes, _, score_log = solver.run()
+
+    print("Plotting logs...")
+    plot_score_log(score_log, filename="ga_score_log.png", log_scale=True)
+    print("Converting to formatted path of the solution...")
+    formatted_path = to_formatted_path(routes, problem)
+    print("Plotting solution...")
+    plot_solution(problem, formatted_path, filename="ga_solution.png")
+
+    return formatted_path
 
 if __name__ == "__main__":
-    prob = Problem(num_cities=500, density=np.sqrt(5)/np.pi, alpha=2*np.pi, beta=np.pi, seed=42)
-    # prob.plot('test_graph.png')
-    
+    prob = Problem(num_cities=50, density=0.3, alpha=1, beta=0.5, seed=42)
+
     print("Running Genetic Algorithm Solution...")
     formatted_path = solution(prob)
     ic(formatted_path)
     
     reconstructed_routes = to_routes(formatted_path)
-    ic(reconstructed_routes)
+    # ic(reconstructed_routes)
     
     cost = compute_total_cost(prob, reconstructed_routes)
     print("Total cost from GA solution:", cost)
 
     baseline_routes, baseline_cost = prob.baseline()
     print("Baseline cost:", baseline_cost)
+    ic(to_formatted_path(baseline_routes, prob))
+
+    plot_solution(prob, to_formatted_path(baseline_routes, prob), filename="baseline_solution.png")
 
     improvement = (baseline_cost - cost) / baseline_cost * 100
     print(f"Improvement over baseline: {improvement:.2f}%")
