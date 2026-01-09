@@ -9,13 +9,14 @@ import time
 from src.ga_solver import evaluate_population_cython
 
 class GeneticAlgorithmSolver:
-    def __init__(self, problem: Problem, pop_size=50, generations=100, mutation_rate=0.2, elite_size=5, tournament_size=5):
+    def __init__(self, problem: Problem, pop_size=50, generations=100, mutation_rate=0.2, elite_size=5, tournament_size=5, patience=50):
         self.problem = problem
         self.pop_size = pop_size
         self.generations = generations
         self.mutation_rate = mutation_rate
         self.elite_size = elite_size
         self.tournament_size = tournament_size
+        self.patience = patience
         
         # Precompute distance matrix (shortest path distances)
         self.dist_matrix = problem.shortest_path_matrix()
@@ -211,19 +212,30 @@ class GeneticAlgorithmSolver:
         population = self.initial_population()
         best_cost = float('inf')
         best_routes = []
+
+        score_log = []
         
         print(f"Starting Genetic Algorithm with {self.generations} generations...")
         
+        generations_without_improvement = 0
+
         for gen in range(self.generations):
-            scores = self.evaluate_population(population)
-            
+            scores = self.evaluate_population(population)            
             # Check for new best
             min_cost = min(scores)
+            score_log.append(min_cost)
             if min_cost < best_cost:
                 best_cost = min_cost
                 best_idx = scores.index(min_cost)
                 _, best_routes = self.split(population[best_idx])
                 print(f"Generation {gen}: New best cost = {best_cost:.4f}")
+                generations_without_improvement = 0
+            else:
+                generations_without_improvement += 1
+            
+            if generations_without_improvement >= self.patience:
+                print(f"Early stopping at generation {gen} after {self.patience} generations without improvement.")
+                break
             
             # Elitism
             sorted_indices = np.argsort(scores)
@@ -242,7 +254,7 @@ class GeneticAlgorithmSolver:
                 
             population = new_population
             
-        return best_routes, best_cost
+        return best_routes, best_cost, score_log
 
 if __name__ == "__main__":
     # Example usage
