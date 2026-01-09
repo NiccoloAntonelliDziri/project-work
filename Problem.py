@@ -12,6 +12,8 @@ class Problem:
     def __init__(self, num_cities, density=0.5, alpha=1.0, beta=1.0, seed=42):
         assert density > 0 and density <= 1.0, "Density must be in (0, 1]"
         assert num_cities >= 2, "There must be at least 2 cities (including depot)"
+        assert beta > 0, "Beta must be positive"
+        assert alpha >= 0, "Alpha must be non-negative"
 
         rng = np.random.default_rng(seed)
         self._alpha = alpha
@@ -74,7 +76,7 @@ class Problem:
     def baseline(self):
         def cost(path, weight):
             dist = nx.path_weight(self._graph, path, weight='dist')
-            return dist + (self._alpha * dist * weight) ** self._beta
+            return dist + np.pow((self._alpha * dist * weight), self._beta)
         
         total_cost = 0
         total_route = []
@@ -153,7 +155,7 @@ def compute_total_cost(problem: Problem,
             for u, v in zip(path_nodes, path_nodes[1:]):
                 edge_dist = problem.graph[u][v]['dist']
                 # Cost for this edge depends on gold carried while traversing it
-                edge_cost = edge_dist + (problem.alpha * current_gold * edge_dist) ** problem.beta
+                edge_cost = edge_dist + np.pow(problem.alpha * current_gold * edge_dist, problem.beta)
                 total_cost += edge_cost
 
             # Pick up gold at the destination node (depot has 0 gold)
