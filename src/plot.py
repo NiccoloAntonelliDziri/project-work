@@ -27,7 +27,6 @@ def plot_solution(problem: Problem, formatted_path, filename='solution.png'):
             curr_node = target
             while curr_node != current:
                 prev_node = predecessors[current, curr_node]
-                # Handling disconnects or errors: if prev_node is -9999 (default)
                 if prev_node < 0:
                      break
                 path_segment.append((prev_node, curr_node))

@@ -37,22 +37,10 @@ def to_routes(formatted_path):
     return routes
 
 def solution(problem: Problem):
-    n_nodes = problem.graph.number_of_nodes()
-    
-    # Those are arbitrary settings that seem to work ? 
-    pop_size = 50
-    generations = 100
-    if n_nodes > 50:
-        generations = 200
-        pop_size = 100
-    if n_nodes > 200:
-        generations = 500
-        pop_size = 100
-
     solver = GeneticAlgorithmSolver(
         problem, 
-        pop_size=pop_size, 
-        generations=generations, 
+        pop_size=100, 
+        generations=500, 
         mutation_rate=0.2, 
         elite_size=5, 
         tournament_size=5
@@ -70,7 +58,7 @@ def solution(problem: Problem):
     return formatted_path
 
 if __name__ == "__main__":
-    prob = Problem(num_cities=50, density=0.3, alpha=1, beta=0.5, seed=42)
+    prob = Problem(num_cities=6, density=0.3, alpha=1, beta=1, seed=42)
 
     print("Running Genetic Algorithm Solution...")
     formatted_path = solution(prob)
