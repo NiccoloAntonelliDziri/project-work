@@ -10,7 +10,7 @@ import time
 from src.ga_solver import evaluate_population_cython
 
 class GeneticAlgorithmSolver:
-    def __init__(self, problem: Problem, pop_size=50, generations=100, mutation_rate=0.2, elite_size=5, tournament_size=5, patience=50):
+    def __init__(self, problem: Problem, pop_size=50, generations=100, mutation_rate=0.2, elite_size=5, tournament_size=5, patience=50, seed=42):
         self.problem = problem
         self.pop_size = pop_size
         self.generations = generations
@@ -18,6 +18,11 @@ class GeneticAlgorithmSolver:
         self.elite_size = elite_size
         self.tournament_size = tournament_size
         self.patience = patience
+        self.seed = seed
+        
+        # Set random seeds for reproducibility
+        random.seed(seed)
+        np.random.seed(seed)
         
         # Precompute distance matrix (shortest path distances)
         self.dist_matrix = get_shortest_path_matrix(problem)
@@ -264,7 +269,7 @@ if __name__ == "__main__":
     print("Defining problem instance...")
     prob = Problem(num_cities=1000, density=0.3, alpha=1.0, beta=2.0, seed=42)
     print("Running Genetic Algorithm Solver...")
-    solver = GeneticAlgorithmSolver(prob, pop_size=100, generations=200, mutation_rate=0.3)
+    solver = GeneticAlgorithmSolver(prob, pop_size=100, generations=200, mutation_rate=0.3, seed=42)
     routes, cost = solver.run()
     
     print("\nFinal Solution:")

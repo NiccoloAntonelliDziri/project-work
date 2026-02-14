@@ -145,7 +145,8 @@ def solution(problem: Problem):
         generations=500, 
         mutation_rate=0.2, 
         elite_size=5, 
-        tournament_size=5
+        tournament_size=5,
+        seed=42
     )
     
     routes, _, score_log = solver.run()
