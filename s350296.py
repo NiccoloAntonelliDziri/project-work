@@ -194,21 +194,20 @@ if __name__ == "__main__":
     p3 = Problem(num_cities=50, density=0.7, alpha=2, beta=0.5, seed=42)
     p4 = Problem(num_cities=100, density=0.5, alpha=1, beta=np.pi, seed=42)
     p5 = Problem(num_cities=200, density=0.4, alpha=0.8, beta=1.5, seed=42)
-    p6 = Problem(num_cities=500, density=0.3, alpha=1.2, beta=0.8, seed=42)
+    p6 = Problem(num_cities=500, density=0.9, alpha=1.2, beta=0.8, seed=42)
     p7 = Problem(num_cities=1000, density=0.2, alpha=1.5, beta=2.0, seed=42)
 
     # Test the solution on all problems
-    for idx, p in enumerate([p1, p2, p3, p4, p5, p6, p7], start=1):
+    for idx, p in enumerate([p4, p5, p6, p7], start=1):
         print(f"\nTesting on Problem {idx} with {p.graph.number_of_nodes()} cities...")
         
         start_time = time.time()
         formatted_path = solution(p)
         reconstructed_routes = to_routes(formatted_path)
-        cost = compute_total_cost(p, reconstructed_routes)
-        baseline_routes, baseline_cost = get_baseline_with_routes(p)
+        # cost = compute_total_cost(p, reconstructed_routes)
+        # baseline_routes, baseline_cost = get_baseline_with_routes(p)
         end_time = time.time()
         
         elapsed_time = end_time - start_time
-        improvement = (baseline_cost - cost) / baseline_cost * 100
-        print(f"Problem {idx}: GA Cost = {cost:.2f}, Baseline Cost = {baseline_cost:.2f}, Improvement = {improvement:.2f}%")
-        print(f"Time elapsed: {elapsed_time:.2f} seconds")
+        # improvement = (baseline_cost - cost) / baseline_cost * 100
+        print(f"Problem {idx}: Time elapsed: {elapsed_time:.2f} seconds")

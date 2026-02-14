@@ -23,32 +23,35 @@ class GeneticAlgorithmSolver:
         # Set random seeds for reproducibility
         random.seed(seed)
         np.random.seed(seed)
-        
-        # Precompute distance matrix (shortest path distances)
+
+        print("Precomputing shortest path matrix...")
         self.dist_matrix = get_shortest_path_matrix(problem)
         # Ensure contiguous float64 for Cython
         self.dist_matrix = np.ascontiguousarray(self.dist_matrix, dtype=np.float64)
         
         # Nodes that need to be visited (all nodes with gold > 0)
-        # Assuming all nodes 1..N have gold based on Problem.py
-        self.customers = [n for n in range(1, problem.graph.number_of_nodes()) if problem.graph.nodes[n]['gold'] > 0]
+        # Optimized: fetch all node gold values at once instead of repeated dictionary lookups
+        print("Extracting customer information and gold values...")
+        
+        # Get all gold values in a single NetworkX call (much faster than individual lookups)
+        node_gold_dict = dict(problem.graph.nodes(data='gold'))
+        n_nodes = problem.graph.number_of_nodes()
+        
+        # Create gold values array directly with proper dtype
+        self.gold_values = np.array([node_gold_dict[n] for n in range(n_nodes)], dtype=np.float64)
+        self.customers = [n for n in range(1, n_nodes) if self.gold_values[n] > 0]
         self.num_customers = len(self.customers)
-        
-        # Precompute gold for faster access
-        self.gold_values = np.array([problem.graph.nodes[n]['gold'] for n in range(problem.graph.number_of_nodes())])
-        # Ensure contiguous float64 for Cython
-        self.gold_values = np.ascontiguousarray(self.gold_values, dtype=np.float64)
-        
+                
         # Parameters
         self.alpha = problem.alpha
         self.beta = problem.beta
 
         # Precompute beta distance matrix
+        print("Precomputing beta distance matrix...")
         self.beta_dist_matrix = self.compute_beta_dist_matrix()
         self.beta_dist_matrix = np.ascontiguousarray(self.beta_dist_matrix, dtype=np.float64)
 
     def compute_beta_dist_matrix(self):
-        print("Precomputing beta distance matrix...")
         n = self.problem.graph.number_of_nodes()
         beta_dist_matrix = np.zeros((n, n))
         

@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 from scipy.sparse import csgraph
 from Problem import Problem
+import time
 
 def get_distance_matrix(problem: Problem) -> np.ndarray:
     graph = problem.graph
@@ -16,6 +17,7 @@ def get_distance_matrix(problem: Problem) -> np.ndarray:
 def get_shortest_path_matrix(problem: Problem) -> np.ndarray:
     dist_matrix = get_distance_matrix(problem)
     dist_matrix = np.where(np.isinf(dist_matrix), 0, dist_matrix)
+    
     # Much faster than networkx
     sp_matrix = csgraph.johnson(dist_matrix, directed=False, return_predecessors=False, unweighted=False)
     return sp_matrix
