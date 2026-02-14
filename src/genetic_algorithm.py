@@ -7,7 +7,7 @@ from problem_utils import get_shortest_path_matrix, get_distance_matrix
 import time
 
 # Import Cython module
-from src.ga_solver import evaluate_population_cython
+from src.ga_solver import evaluate_population_cython, solve_split_single
 
 class GeneticAlgorithmSolver:
     def __init__(self, problem: Problem, pop_size=50, generations=100, mutation_rate=0.2, elite_size=5, tournament_size=5, patience=50, seed=42):
@@ -78,7 +78,7 @@ class GeneticAlgorithmSolver:
                         beta_d = np.inf
                         break
                     d = adj[prev, cur]
-                    beta_d += np.pow(d, self.beta)
+                    beta_d += d ** self.beta  # ** is faster than np.pow
                     cur = prev
 
                 beta_dist_matrix[u, v] = beta_d
@@ -91,63 +91,35 @@ class GeneticAlgorithmSolver:
         return dist + np.pow(self.alpha * current_gold, self.beta) * beta_dist
 
     def split(self, permutation):
+        # Use Cython optimized split for reconstruction
+        perm_arr = np.array(permutation, dtype=np.int64)
         n = len(permutation)
-        # dp[i] = min cost to service first i customers in the permutation
-        dp = np.full(n + 1, np.inf)
-        dp[0] = 0
-        predecessor = np.zeros(n + 1, dtype=int)
         
-        # Precompute alpha^beta for repeated use
-        alpha_beta = self.alpha ** self.beta
+        cost, predecessor = solve_split_single(
+            perm_arr, 
+            self.dist_matrix, 
+            self.beta_dist_matrix, 
+            self.gold_values, 
+            self.alpha, 
+            self.beta,
+            n
+        )
         
-        # For each starting point i
-        for i in range(n):
-            if dp[i] == np.inf:
-                continue
-                
-            current_gold = 0.0
-            trip_cost = 0.0
-            current_node = 0 # Start at depot
-            
-            # Try to extend the trip to j
-            for j in range(i + 1, n + 1):
-                next_customer = permutation[j-1]
-                
-                # Inline edge cost calculation for speed (turns out ** is faster than np.pow)
-                dist = self.dist_matrix[current_node, next_customer]
-                beta_dist = self.beta_dist_matrix[current_node, next_customer]
-                gold_factor = current_gold ** self.beta  # Precompute power
-                trip_cost += dist + alpha_beta * gold_factor * beta_dist
-                
-                # Pick up gold
-                current_gold += self.gold_values[next_customer]
-                current_node = next_customer
-                
-                # Cost to return to depot (inline calculation)
-                dist_to_depot = self.dist_matrix[current_node, 0]
-                beta_dist_to_depot = self.beta_dist_matrix[current_node, 0]
-                gold_factor = current_gold ** self.beta
-                return_cost = dist_to_depot + alpha_beta * gold_factor * beta_dist_to_depot
-                
-                total_cost = dp[i] + trip_cost + return_cost
-                
-                if total_cost < dp[j]:
-                    dp[j] = total_cost
-                    predecessor[j] = i
-                    
         # Reconstruct routes
         routes = []
         curr = n
         while curr > 0:
             prev = predecessor[curr]
+            if prev == -1: # Should not happen if reachable
+                break 
+            
             # Route from prev to curr (indices in permutation are prev...curr-1)
             route_segment = permutation[prev:curr]
             # Add depot at start and end
-            full_route = [0] + list(route_segment) + [0]
-            routes.append(full_route), 
+            routes.append([0] + list(route_segment) + [0])
             curr = prev
             
-        return dp[n], routes[::-1]
+        return cost, routes[::-1]
 
     def initial_population(self):
         population = []
@@ -172,51 +144,54 @@ class GeneticAlgorithmSolver:
         return scores.tolist()
 
     def selection(self, population, scores):
-        # Tournament selection
-        selected = []
-        pop_indices = list(range(len(population)))
-        for _ in range(len(population)):
-            tournament = random.sample(pop_indices, self.tournament_size)
-            winner = min(tournament, key=lambda i: scores[i])
-            selected.append(population[winner])
+        # Tournament selection - Optimized
+        pop_size = len(population)
+        scores_arr = np.array(scores)
+        
+        # Select tournament candidates randomly: shape (pop_size, tournament_size)
+        # Using randint is faster than choice and sufficient for selection pressure even with collisions
+        tournament_indices = np.random.randint(0, pop_size, (pop_size, self.tournament_size))
+        
+        # Get scores for all candidates using fancy indexing
+        tournament_scores = scores_arr[tournament_indices]
+        
+        # Find index of winner in each tournament (min score) within the tournament axis
+        winner_local_indices = np.argmin(tournament_scores, axis=1)
+        
+        # Map back to population global indices
+        # We need to pick the specific index from tournament_indices for each row
+        winner_global_indices = tournament_indices[np.arange(pop_size), winner_local_indices]
+        
+        # Create selected population
+        selected = [population[i] for i in winner_global_indices]
         return selected
 
     def crossover(self, parent1, parent2):
-        # Ordered Crossover (OX)
+        # Ordered Crossover (OX) - Optimized
         size = len(parent1)
-        start, end = sorted(random.sample(range(size), 2))
         
-        child1 = [None] * size
-        child1[start:end] = parent1[start:end]
+        # Get two random crossover points
+        cx, cy = sorted(random.sample(range(size), 2))
         
-        # Use a set for fast lookups of what's already in the child
-        current_elements = set(parent1[start:end])
+        # 1. Copy segment from parent1
+        segment = parent1[cx:cy]
+        segment_set = set(segment)
         
-        current_pos = end
-        for item in parent2:
-            if item not in current_elements:
-                if current_pos >= size:
-                    current_pos = 0
-                
-                while child1[current_pos] is not None:
-                    current_pos += 1
-                    if current_pos >= size:
-                        current_pos = 0
-                
-                child1[current_pos] = item
-                current_pos += 1
+        # 2. Fill from parent2 starting after cy, wrapping around
+        p2_reordered = parent2[cy:] + parent2[:cy]
+        remaining = [x for x in p2_reordered if x not in segment_set]
         
-        if None in child1:
-            print("Crossover failed!")
-            print("Size:", size)
-            print("Start:", start, "End:", end)
-            print("Parent1 len:", len(parent1))
-            print("Parent2 len:", len(parent2))
-            print("Child1 has None:", child1.count(None))
-            child1[current_pos] = item
-            current_pos += 1
+        # 3. Place remaining elements into child
+        child = [None] * size
+        child[cx:cy] = segment
         
-        return child1
+        # Number of spots after segment: size - cy
+        tail_count = size - cy
+        
+        child[cy:] = remaining[:tail_count]
+        child[:cx] = remaining[tail_count:]
+        
+        return child
 
     def mutate(self, individual):
         if random.random() < self.mutation_rate:
@@ -226,7 +201,6 @@ class GeneticAlgorithmSolver:
         return individual
 
     def run(self):
-        
         # Timing accumulators
         time_init_pop = 0
         time_evaluate = 0

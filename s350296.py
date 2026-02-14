@@ -40,7 +40,7 @@ def compute_total_cost(problem: Problem, routes: list[list[int]]) -> float:
             for u, v in zip(path_nodes, path_nodes[1:]):
                 edge_dist = problem.graph[u][v]['dist']
                 # Cost for this edge depends on gold carried while traversing it
-                edge_cost = edge_dist + np.pow(problem.alpha * current_gold * edge_dist, problem.beta)
+                edge_cost = edge_dist + (problem.alpha * current_gold * edge_dist) ** problem.beta
                 total_cost += edge_cost
 
             # Pick up gold at the destination node (depot has 0 gold)
@@ -64,9 +64,11 @@ def is_valid_solution(problem: Problem, routes: list[list[int]]) -> bool:
         return False
     return True
 
-def is_valid_formatted(path, p:Problem):
+
+def is_valid_formatted(problem, path):
     for (c1, gold1), (c2, gold2) in zip(path, path[1:]):
-        return has_path(p.graph, c1, c2)
+        yield problem.graph.has_edge(c1,c2)
+
 
 def to_formatted_path(routes, problem):
     """
@@ -74,15 +76,27 @@ def to_formatted_path(routes, problem):
     into a single sequential path of (node, gold_collected) tuples.
     This version includes all intermediate nodes traversed in the shortest path.
     Format: [(c1, g1), (c2, g2), ..., (cN, gN), (0, 0)]
+    
+    Optimizations:
+    - Precompute all gold values in a dictionary for O(1) lookups
+    - Build path segments in reverse and reverse once (more efficient)
+    - Use dictionary lookups instead of NetworkX attribute access
     """
+    t_start = time.perf_counter()
     dist_matrix = get_distance_matrix(problem)
     dist_matrix = np.where(np.isinf(dist_matrix), 0, dist_matrix)
     _, predecessors = csgraph.shortest_path(dist_matrix, directed=False, return_predecessors=True)
+    t_matrix = time.perf_counter()
+    print(f"  to_formatted_path: Distance matrix & shortest paths: {t_matrix - t_start:.4f}s")
+    
+    # Get all gold values at once instead of repeated NetworkX lookups
+    node_gold_dict = dict(problem.graph.nodes(data='gold'))
     
     formatted_path = []
     # Set to keep track of nodes where gold has been picked up
     visited_for_gold = set()
     
+    t_loop_start = time.perf_counter()
     for route in routes:
         for i in range(len(route) - 1):
             from_node = route[i]
@@ -98,6 +112,7 @@ def to_formatted_path(routes, problem):
                 visited_for_gold.add(to_node)
             
             # Reconstruct the shortest path from from_node to to_node
+            # Build path in reverse, then reverse once (more efficient)
             path_segment = []
             curr = to_node
             while curr != from_node:
@@ -108,13 +123,18 @@ def to_formatted_path(routes, problem):
                 curr = prev
             path_segment.reverse()
             
+            # Use dictionary lookup instead of NetworkX attribute access
             # Add nodes in the path to the formatted path
             for node in path_segment:
                 gold = 0
                 # We only "pick up" gold at the destination node of this segment
                 if node == to_node and node != 0:
-                    gold = problem.graph.nodes[node]['gold']
+                    gold = node_gold_dict[node]
                 formatted_path.append((node, gold))
+    
+    t_loop_end = time.perf_counter()
+    print(f"  to_formatted_path: Route processing loop: {t_loop_end - t_loop_start:.4f}s")
+    print(f"  to_formatted_path: TOTAL TIME: {t_loop_end - t_start:.4f}s")
                 
     return formatted_path
 
@@ -203,6 +223,7 @@ if __name__ == "__main__":
         
         start_time = time.time()
         formatted_path = solution(p)
+        is_valid_formatted(formatted_path, p)
         reconstructed_routes = to_routes(formatted_path)
         # cost = compute_total_cost(p, reconstructed_routes)
         # baseline_routes, baseline_cost = get_baseline_with_routes(p)
