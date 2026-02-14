@@ -1,4 +1,5 @@
 from Problem import Problem
+from problem_utils import get_distance_matrix
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -7,7 +8,7 @@ from scipy.sparse import csgraph
 def plot_solution(problem: Problem, formatted_path, filename='solution.png'):
     # Reconstruct the full physical path between stops
     # We need predecessors for shortest path reconstruction
-    dist_matrix = problem.distance_matrix()
+    dist_matrix = get_distance_matrix(problem)
     # Replace inf with 0 for csgraph
     dist_matrix = np.where(np.isinf(dist_matrix), 0, dist_matrix)
     _, predecessors = csgraph.shortest_path(dist_matrix, directed=False, return_predecessors=True)

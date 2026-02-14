@@ -2,7 +2,8 @@ import numpy as np
 import random
 import networkx as nx
 from scipy.sparse.csgraph import dijkstra
-from Problem import Problem, compute_total_cost
+from Problem import Problem
+from problem_utils import get_shortest_path_matrix, get_distance_matrix
 import time
 
 # Import Cython module
@@ -19,7 +20,7 @@ class GeneticAlgorithmSolver:
         self.patience = patience
         
         # Precompute distance matrix (shortest path distances)
-        self.dist_matrix = problem.shortest_path_matrix()
+        self.dist_matrix = get_shortest_path_matrix(problem)
         # Ensure contiguous float64 for Cython
         self.dist_matrix = np.ascontiguousarray(self.dist_matrix, dtype=np.float64)
         
@@ -48,7 +49,7 @@ class GeneticAlgorithmSolver:
         
         # Use SciPy's csgraph dijkstra (much faster than networkx) with predecessors for faster shortest-path reconstruction
         # Get adjacency (original edge distances, inf for missing edges)
-        adj = self.problem.distance_matrix()
+        adj = get_distance_matrix(self.problem)
         dist_sp, predecessors = dijkstra(adj, directed=False, return_predecessors=True, unweighted=False)
 
         for u in range(n):
@@ -228,7 +229,7 @@ class GeneticAlgorithmSolver:
                 best_cost = min_cost
                 best_idx = scores.index(min_cost)
                 _, best_routes = self.split(population[best_idx])
-                print(f"Generation {gen}: New best cost = {best_cost:.4f}")
+                print(f"Generation {gen}/{self.generations}: New best cost = {best_cost:.4f}")
                 generations_without_improvement = 0
             else:
                 generations_without_improvement += 1
@@ -257,6 +258,8 @@ class GeneticAlgorithmSolver:
         return best_routes, best_cost, score_log
 
 if __name__ == "__main__":
+    from problem_utils import get_baseline_with_routes
+    
     # Example usage
     print("Defining problem instance...")
     prob = Problem(num_cities=1000, density=0.3, alpha=1.0, beta=2.0, seed=42)
@@ -270,16 +273,22 @@ if __name__ == "__main__":
 
     # Baseline comparison
     print("\nComputing baseline solution for comparison...")
-    baseline_routes, baseline_cost = prob.baseline()
+    baseline_routes, baseline_cost = get_baseline_with_routes(prob)
     # print("Baseline Routes:", baseline_routes)
     print("Baseline Cost:", baseline_cost)    
 
-    # Verify with Problem's compute_total_cost
+    # Verify with compute_total_cost from s350296.py
+    # Import locally to avoid circular dependencies
+    import sys
+    sys.path.insert(0, '/home/niccolo/Torino/CI/project')
+    from s350296 import compute_total_cost
+    
     verified_cost = compute_total_cost(prob, routes)
-    print(f"Verified Cost (Problem.py): {verified_cost}")
+    print(f"Verified Cost: {verified_cost}")
     print(f"Difference: {abs(cost - verified_cost)}")
 
     # Improvement over baseline
     improvement = baseline_cost - cost
     percentage_improvement = (improvement / baseline_cost) * 100
     print(f"Improvement over baseline: {improvement} ({percentage_improvement:.2f}%)")
+
