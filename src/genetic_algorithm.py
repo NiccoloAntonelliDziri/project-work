@@ -97,6 +97,9 @@ class GeneticAlgorithmSolver:
         dp[0] = 0
         predecessor = np.zeros(n + 1, dtype=int)
         
+        # Precompute alpha^beta for repeated use
+        alpha_beta = self.alpha ** self.beta
+        
         # For each starting point i
         for i in range(n):
             if dp[i] == np.inf:
@@ -110,15 +113,21 @@ class GeneticAlgorithmSolver:
             for j in range(i + 1, n + 1):
                 next_customer = permutation[j-1]
                 
-                # Cost to go from current_node to next_customer
-                trip_cost += self.calculate_edge_cost(current_node, next_customer, current_gold)
+                # Inline edge cost calculation for speed (turns out ** is faster than np.pow)
+                dist = self.dist_matrix[current_node, next_customer]
+                beta_dist = self.beta_dist_matrix[current_node, next_customer]
+                gold_factor = current_gold ** self.beta  # Precompute power
+                trip_cost += dist + alpha_beta * gold_factor * beta_dist
                 
                 # Pick up gold
                 current_gold += self.gold_values[next_customer]
                 current_node = next_customer
                 
-                # Cost to return to depot from next_customer
-                return_cost = self.calculate_edge_cost(current_node, 0, current_gold)
+                # Cost to return to depot (inline calculation)
+                dist_to_depot = self.dist_matrix[current_node, 0]
+                beta_dist_to_depot = self.beta_dist_matrix[current_node, 0]
+                gold_factor = current_gold ** self.beta
+                return_cost = dist_to_depot + alpha_beta * gold_factor * beta_dist_to_depot
                 
                 total_cost = dp[i] + trip_cost + return_cost
                 
@@ -218,7 +227,18 @@ class GeneticAlgorithmSolver:
 
     def run(self):
         
+        # Timing accumulators
+        time_init_pop = 0
+        time_evaluate = 0
+        time_split = 0
+        time_elitism = 0
+        time_selection = 0
+        time_crossover_mutation = 0
+        
+        t0 = time.perf_counter()
         population = self.initial_population()
+        time_init_pop = time.perf_counter() - t0
+        
         best_cost = float('inf')
         best_routes = []
 
@@ -227,16 +247,25 @@ class GeneticAlgorithmSolver:
         print(f"Starting Genetic Algorithm with {self.generations} generations...")
         
         generations_without_improvement = 0
+        split_calls = 0
 
         for gen in range(self.generations):
-            scores = self.evaluate_population(population)            
+            t0 = time.perf_counter()
+            scores = self.evaluate_population(population)
+            time_evaluate += time.perf_counter() - t0
+            
             # Check for new best
             min_cost = min(scores)
             score_log.append(min_cost)
             if min_cost < best_cost:
                 best_cost = min_cost
                 best_idx = scores.index(min_cost)
+                
+                t0 = time.perf_counter()
                 _, best_routes = self.split(population[best_idx])
+                time_split += time.perf_counter() - t0
+                split_calls += 1
+                
                 print(f"Generation {gen}/{self.generations}: New best cost = {best_cost:.4f}")
                 generations_without_improvement = 0
             else:
@@ -247,22 +276,39 @@ class GeneticAlgorithmSolver:
                 break
             
             # Elitism
+            t0 = time.perf_counter()
             sorted_indices = np.argsort(scores)
             new_population = [population[i] for i in sorted_indices[:self.elite_size]]
+            time_elitism += time.perf_counter() - t0
             
             # Selection
+            t0 = time.perf_counter()
             parents = self.selection(population, scores)
+            time_selection += time.perf_counter() - t0
             
             # Crossover and Mutation
+            t0 = time.perf_counter()
             while len(new_population) < self.pop_size:
                 p1 = random.choice(parents)
                 p2 = random.choice(parents)
                 child = self.crossover(p1, p2)
                 child = self.mutate(child)
                 new_population.append(child)
+            time_crossover_mutation += time.perf_counter() - t0
                 
             population = new_population
-            
+        
+        # Print timing summary
+        print("\n=== Timing Summary ===")
+        print(f"Initial population: {time_init_pop:.4f} seconds")
+        print(f"Evaluation: {time_evaluate:.4f} seconds")
+        print(f"Split (route building): {time_split:.4f} seconds ({split_calls} calls, {time_split/max(split_calls,1):.4f} sec/call)")
+        print(f"Elitism: {time_elitism:.4f} seconds")
+        print(f"Selection: {time_selection:.4f} seconds")
+        print(f"Crossover & Mutation: {time_crossover_mutation:.4f} seconds")
+        total_ga_time = time_init_pop + time_evaluate + time_split + time_elitism + time_selection + time_crossover_mutation
+        print(f"Total GA time: {total_ga_time:.4f} seconds")
+        
         return best_routes, best_cost, score_log
 
 if __name__ == "__main__":
