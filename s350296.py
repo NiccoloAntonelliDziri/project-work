@@ -162,11 +162,11 @@ def to_routes(formatted_path):
 def solution(problem: Problem):
     solver = GeneticAlgorithmSolver(
         problem, 
-        pop_size=200, 
-        generations=1000, 
+        pop_size=300, 
+        generations=1800, 
         mutation_rate=0.2, 
-        elite_size=10, 
-        tournament_size=10,
+        elite_size=20, 
+        tournament_size=30,
         patience=100,
         seed=42
     )
