@@ -22,6 +22,8 @@ def solve_split_single(long[:] permutation, double[:, :] dist_matrix, double[:, 
     cdef double dist_val
     cdef double beta_dist_val
     cdef double alpha_beta = pow(alpha, beta)
+    cdef double gold_power
+    cdef double next_gold_power
     
     # Pre-extract depot distances (column 0)
     cdef double[:] dist_to_depot = np.ascontiguousarray(dist_matrix[:, 0], dtype=np.float64)
@@ -45,7 +47,8 @@ def solve_split_single(long[:] permutation, double[:, :] dist_matrix, double[:, 
         current_gold = 0.0
         trip_cost = 0.0
         current_node = 0 # Depot
-        
+        gold_power = 0.0
+
         for j in range(i + 1, n + 1):
             next_customer = permutation[j-1]
             
@@ -53,25 +56,35 @@ def solve_split_single(long[:] permutation, double[:, :] dist_matrix, double[:, 
             dist_val = dist_matrix[current_node, next_customer]
             beta_dist_val = beta_dist_matrix[current_node, next_customer]
             
+            # Reuse cached gold_power
             if current_gold == 0:
                  trip_cost += dist_val
             else:
-                 trip_cost += dist_val + alpha_beta * pow(current_gold, beta) * beta_dist_val
+                 trip_cost += dist_val + alpha_beta * gold_power * beta_dist_val
             
             current_gold += gold_values[next_customer]
             current_node = next_customer
             
+            # Calculate next gold power
+            if current_gold == 0:
+                 next_gold_power = 0.0
+            else:
+                 next_gold_power = pow(current_gold, beta)
+
             # Cost to return
             if current_gold == 0:
                  return_cost = dist_to_depot[current_node]
             else:
-                 return_cost = dist_to_depot[current_node] + alpha_beta * pow(current_gold, beta) * beta_dist_to_depot[current_node]
+                 return_cost = dist_to_depot[current_node] + alpha_beta * next_gold_power * beta_dist_to_depot[current_node]
             
             total_cost = dp[i] + trip_cost + return_cost
             
             if total_cost < dp[j]:
                 dp[j] = total_cost
                 predecessor[j] = i
+            
+            # Update cache for next iteration
+            gold_power = next_gold_power
                 
     result_cost = dp[n]
     
@@ -96,7 +109,8 @@ cdef double solve_split(long[:] permutation, double[:, :] dist_matrix, double[:,
     cdef double dist_val
     cdef double beta_dist_val
     cdef double alpha_beta = pow(alpha, beta)
-    cdef double gold_factor
+    cdef double gold_power
+    cdef double next_gold_power
     
     if dp == NULL:
         return -1.0 
@@ -112,6 +126,7 @@ cdef double solve_split(long[:] permutation, double[:, :] dist_matrix, double[:,
         current_gold = 0.0
         trip_cost = 0.0
         current_node = 0 # Depot
+        gold_power = 0.0 # pow(0, beta) is 0
         
         for j in range(i + 1, n + 1):
             next_customer = permutation[j-1]
@@ -120,25 +135,35 @@ cdef double solve_split(long[:] permutation, double[:, :] dist_matrix, double[:,
             dist_val = dist_matrix[current_node, next_customer]
             beta_dist_val = beta_dist_matrix[current_node, next_customer]
             
-            # Optimization: If gold is 0, pow is 0
+            # Optimization: If gold is 0, pow is 0. 
+            # We reuse gold_power calculated in previous step (or 0 initially)
             if current_gold == 0:
                  trip_cost += dist_val
             else:
-                 trip_cost += dist_val + alpha_beta * pow(current_gold, beta) * beta_dist_val
+                 trip_cost += dist_val + alpha_beta * gold_power * beta_dist_val
             
             current_gold += gold_values[next_customer]
             current_node = next_customer
             
+            # Calculate power for return cost (and next trip cost)
+            if current_gold == 0:
+                 next_gold_power = 0.0
+            else:
+                 next_gold_power = pow(current_gold, beta)
+
             # Cost to return (use cached depot distances passed as arguments)
             if current_gold == 0:
                  return_cost = dist_to_depot[current_node]
             else:
-                 return_cost = dist_to_depot[current_node] + alpha_beta * pow(current_gold, beta) * beta_dist_to_depot[current_node]
+                 return_cost = dist_to_depot[current_node] + alpha_beta * next_gold_power * beta_dist_to_depot[current_node]
             
             total_cost = dp[i] + trip_cost + return_cost
             
             if total_cost < dp[j]:
                 dp[j] = total_cost
+            
+            # Update gold_power for next iteration
+            gold_power = next_gold_power
                 
     cdef double result = dp[n]
     free(dp)
@@ -151,7 +176,6 @@ def evaluate_population_cython(long[:, :] population, double[:, :] dist_matrix, 
     cdef int i
     
     # Pre-extract depot distances (column 0) to avoid repeated memory access patterns or allocations inside loop
-    # We create continuous arrays for CPU cache friendliness
     cdef double[:] dist_to_depot = np.ascontiguousarray(dist_matrix[:, 0], dtype=np.float64)
     cdef double[:] beta_dist_to_depot = np.ascontiguousarray(beta_dist_matrix[:, 0], dtype=np.float64)
 

@@ -162,11 +162,12 @@ def to_routes(formatted_path):
 def solution(problem: Problem):
     solver = GeneticAlgorithmSolver(
         problem, 
-        pop_size=100, 
-        generations=500, 
+        pop_size=200, 
+        generations=1000, 
         mutation_rate=0.2, 
-        elite_size=5, 
-        tournament_size=5,
+        elite_size=10, 
+        tournament_size=10,
+        patience=100,
         seed=42
     )
     
@@ -218,7 +219,7 @@ if __name__ == "__main__":
     p7 = Problem(num_cities=1000, density=0.2, alpha=1.5, beta=2.0, seed=42)
 
     # Test the solution on all problems
-    for idx, p in enumerate([p6, p7], start=1):
+    for idx, p in enumerate([p1, p2, p3, p4, p5, p6, p7], start=1):
         print(f"\nTesting on Problem {idx} with {p.graph.number_of_nodes()} cities...")
         
         start_time = time.time()
@@ -227,8 +228,6 @@ if __name__ == "__main__":
         reconstructed_routes = to_routes(formatted_path)
         # cost = compute_total_cost(p, reconstructed_routes)
         # baseline_routes, baseline_cost = get_baseline_with_routes(p)
-        end_time = time.time()
-        
-        elapsed_time = end_time - start_time
-        # improvement = (baseline_cost - cost) / baseline_cost * 100
+        elapsed_time = time.time() - start_time
+
         print(f"Problem {idx}: Time elapsed: {elapsed_time:.2f} seconds")

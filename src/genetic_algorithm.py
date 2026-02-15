@@ -201,32 +201,18 @@ class GeneticAlgorithmSolver:
         return individual
 
     def run(self):
-        # Timing accumulators
-        time_init_pop = 0
-        time_evaluate = 0
-        time_split = 0
-        time_elitism = 0
-        time_selection = 0
-        time_crossover_mutation = 0
-        
-        t0 = time.perf_counter()
-        population = self.initial_population()
-        time_init_pop = time.perf_counter() - t0
-        
+        population = self.initial_population()        
+
         best_cost = float('inf')
         best_routes = []
-
         score_log = []
         
         print(f"Starting Genetic Algorithm with {self.generations} generations...")
         
         generations_without_improvement = 0
-        split_calls = 0
 
         for gen in range(self.generations):
-            t0 = time.perf_counter()
             scores = self.evaluate_population(population)
-            time_evaluate += time.perf_counter() - t0
             
             # Check for new best
             min_cost = min(scores)
@@ -235,10 +221,7 @@ class GeneticAlgorithmSolver:
                 best_cost = min_cost
                 best_idx = scores.index(min_cost)
                 
-                t0 = time.perf_counter()
                 _, best_routes = self.split(population[best_idx])
-                time_split += time.perf_counter() - t0
-                split_calls += 1
                 
                 print(f"Generation {gen}/{self.generations}: New best cost = {best_cost:.4f}")
                 generations_without_improvement = 0
@@ -250,73 +233,20 @@ class GeneticAlgorithmSolver:
                 break
             
             # Elitism
-            t0 = time.perf_counter()
             sorted_indices = np.argsort(scores)
             new_population = [population[i] for i in sorted_indices[:self.elite_size]]
-            time_elitism += time.perf_counter() - t0
             
             # Selection
-            t0 = time.perf_counter()
             parents = self.selection(population, scores)
-            time_selection += time.perf_counter() - t0
             
             # Crossover and Mutation
-            t0 = time.perf_counter()
             while len(new_population) < self.pop_size:
                 p1 = random.choice(parents)
                 p2 = random.choice(parents)
                 child = self.crossover(p1, p2)
                 child = self.mutate(child)
                 new_population.append(child)
-            time_crossover_mutation += time.perf_counter() - t0
                 
             population = new_population
-        
-        # Print timing summary
-        print("\n=== Timing Summary ===")
-        print(f"Initial population: {time_init_pop:.4f} seconds")
-        print(f"Evaluation: {time_evaluate:.4f} seconds")
-        print(f"Split (route building): {time_split:.4f} seconds ({split_calls} calls, {time_split/max(split_calls,1):.4f} sec/call)")
-        print(f"Elitism: {time_elitism:.4f} seconds")
-        print(f"Selection: {time_selection:.4f} seconds")
-        print(f"Crossover & Mutation: {time_crossover_mutation:.4f} seconds")
-        total_ga_time = time_init_pop + time_evaluate + time_split + time_elitism + time_selection + time_crossover_mutation
-        print(f"Total GA time: {total_ga_time:.4f} seconds")
-        
+    
         return best_routes, best_cost, score_log
-
-if __name__ == "__main__":
-    from problem_utils import get_baseline_with_routes
-    
-    # Example usage
-    print("Defining problem instance...")
-    prob = Problem(num_cities=1000, density=0.3, alpha=1.0, beta=2.0, seed=42)
-    print("Running Genetic Algorithm Solver...")
-    solver = GeneticAlgorithmSolver(prob, pop_size=100, generations=200, mutation_rate=0.3, seed=42)
-    routes, cost = solver.run()
-    
-    print("\nFinal Solution:")
-    print("Routes:", routes)
-    print("Cost:", cost)
-
-    # Baseline comparison
-    print("\nComputing baseline solution for comparison...")
-    baseline_routes, baseline_cost = get_baseline_with_routes(prob)
-    # print("Baseline Routes:", baseline_routes)
-    print("Baseline Cost:", baseline_cost)    
-
-    # Verify with compute_total_cost from s350296.py
-    # Import locally to avoid circular dependencies
-    import sys
-    sys.path.insert(0, '/home/niccolo/Torino/CI/project')
-    from s350296 import compute_total_cost
-    
-    verified_cost = compute_total_cost(prob, routes)
-    print(f"Verified Cost: {verified_cost}")
-    print(f"Difference: {abs(cost - verified_cost)}")
-
-    # Improvement over baseline
-    improvement = baseline_cost - cost
-    percentage_improvement = (improvement / baseline_cost) * 100
-    print(f"Improvement over baseline: {improvement} ({percentage_improvement:.2f}%)")
-
