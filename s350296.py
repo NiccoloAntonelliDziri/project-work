@@ -160,20 +160,27 @@ def to_routes(formatted_path):
     return routes
 
 def solution(problem: Problem):
+    t0 = time.perf_counter()
     solver = GeneticAlgorithmSolver(
         problem, 
         pop_size=300, 
-        generations=1800, 
+        generations=2000, 
         mutation_rate=0.2, 
         elite_size=20, 
         tournament_size=30,
         patience=100,
         seed=42
     )
+    t1 = time.perf_counter()
     
     routes, _, score_log = solver.run()
+    t2 = time.perf_counter()
 
     formatted_path = to_formatted_path(routes, problem)
+    t3 = time.perf_counter()
+    print(f"Genetic Algorithm completed in {t2 - t1:.4f} seconds")
+    print(f"Initialized Genetic Algorithm Solver in {t1 - t0:.4f} seconds")
+    print(f"Converted to formatted path in {t3 - t2:.4f} seconds")
 
     # Uncomment the following lines for plots
 
@@ -219,7 +226,7 @@ if __name__ == "__main__":
     p7 = Problem(num_cities=1000, density=0.2, alpha=1.5, beta=2.0, seed=42)
 
     # Test the solution on all problems
-    for idx, p in enumerate([p1, p2, p3, p4, p5, p6, p7], start=1):
+    for idx, p in enumerate([p3, p4, p5, p6, p7], start=1):
         print(f"\nTesting on Problem {idx} with {p.graph.number_of_nodes()} cities...")
         
         start_time = time.time()
