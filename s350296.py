@@ -82,12 +82,9 @@ def to_formatted_path(routes, problem):
     - Build path segments in reverse and reverse once (more efficient)
     - Use dictionary lookups instead of NetworkX attribute access
     """
-    t_start = time.perf_counter()
     dist_matrix = get_distance_matrix(problem)
     dist_matrix = np.where(np.isinf(dist_matrix), 0, dist_matrix)
     _, predecessors = csgraph.shortest_path(dist_matrix, directed=False, return_predecessors=True)
-    t_matrix = time.perf_counter()
-    print(f"  to_formatted_path: Distance matrix & shortest paths: {t_matrix - t_start:.4f}s")
     
     # Get all gold values at once instead of repeated NetworkX lookups
     node_gold_dict = dict(problem.graph.nodes(data='gold'))
@@ -131,10 +128,6 @@ def to_formatted_path(routes, problem):
                 if node == to_node and node != 0:
                     gold = node_gold_dict[node]
                 formatted_path.append((node, gold))
-    
-    t_loop_end = time.perf_counter()
-    print(f"  to_formatted_path: Route processing loop: {t_loop_end - t_loop_start:.4f}s")
-    print(f"  to_formatted_path: TOTAL TIME: {t_loop_end - t_start:.4f}s")
                 
     return formatted_path
 
@@ -160,7 +153,6 @@ def to_routes(formatted_path):
     return routes
 
 def solution(problem: Problem):
-    t0 = time.perf_counter()
     solver = GeneticAlgorithmSolver(
         problem, 
         pop_size=300, 
@@ -171,26 +163,9 @@ def solution(problem: Problem):
         patience=100,
         seed=42
     )
-    t1 = time.perf_counter()
-    
-    routes, _, score_log = solver.run()
-    t2 = time.perf_counter()
 
+    routes, _, _ = solver.run()
     formatted_path = to_formatted_path(routes, problem)
-    t3 = time.perf_counter()
-    print(f"Genetic Algorithm completed in {t2 - t1:.4f} seconds")
-    print(f"Initialized Genetic Algorithm Solver in {t1 - t0:.4f} seconds")
-    print(f"Converted to formatted path in {t3 - t2:.4f} seconds")
-
-    # Uncomment the following lines for plots
-
-    # print("Plotting logs...")
-    # plot_score_log(score_log, filename="ga_score_log.png", log_scale=True)
-    # print("Converting to formatted path of the solution...")
-
-    # print("Plotting solution...")
-    # plot_solution(problem, formatted_path, filename="ga_solution.png")
-
     return formatted_path
 
 if __name__ == "__main__":
